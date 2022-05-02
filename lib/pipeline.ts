@@ -15,7 +15,7 @@ export class Pipeline extends cdk.Stack {
         const pipeline = new CodePipeline(this, 'Pipeline', {
             synth: new ShellStep('Synth', {
                 input: CodePipelineSource.gitHub('urbinalabs/ajayu-infrastructure', 'main'),
-                commands: ['npm ci', 'npm run build', 'npx cdk synth']
+                commands: ['node -v', 'npm ci', 'npm run build', 'npx cdk synth']
             })
         });
 
