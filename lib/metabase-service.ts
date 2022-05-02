@@ -4,6 +4,13 @@ import { aws_ec2 as ec2 } from 'aws-cdk-lib';
 import { aws_ecs as ecs } from 'aws-cdk-lib';
 import { aws_ecs_patterns as ecsPatterns } from 'aws-cdk-lib';
 import { aws_rds as rds } from 'aws-cdk-lib';
+import {
+    DefaultDashboardFactory,
+    DashboardRenderingPreference,
+    FargateServiceMonitoring,
+    MonitoringFacade,
+    MonitoringScope
+} from 'cdk-monitoring-constructs';
 
 export interface MetabaseServiceProps {
     readonly cluster: ecs.Cluster;
@@ -14,20 +21,26 @@ export class MetabaseService extends cdk.Stack {
     constructor(scope: Construct, id: string, props: MetabaseServiceProps) {
         super(scope, id);
 
-        const database = new rds.DatabaseInstance(this, 'Database', {
-            engine: rds.DatabaseInstanceEngine.postgres({
-                version: rds.PostgresEngineVersion.VER_14_2
-            }),
-            vpc: props.vpc,
-            databaseName: 'metabase',
-            instanceType: ec2.InstanceType.of(
-                ec2.InstanceClass.BURSTABLE4_GRAVITON,
-                ec2.InstanceSize.MICRO
+        const db = new rds.DatabaseCluster(this, 'db', {
+            engine: rds.DatabaseClusterEngine.AURORA_POSTGRESQL,
+            parameterGroup: rds.ParameterGroup.fromParameterGroupName(
+                this,
+                'ParameterGroup',
+                'default.aurora-postgresql13'
             ),
-            credentials: rds.Credentials.fromUsername('metabase'),
-            vpcSubnets: {
-                subnetType: ec2.SubnetType.PUBLIC
-            }
+            instanceProps: {
+                vpc: props.vpc,
+                vpcSubnets: {
+                    subnetType: ec2.SubnetType.ISOLATED
+                },
+                instanceType: ec2.InstanceType.of(
+                    ec2.InstanceClass.BURSTABLE4_GRAVITON,
+                    ec2.InstanceSize.MEDIUM
+                ),
+                enablePerformanceInsights: true
+            },
+            defaultDatabaseName: 'metabase',
+            credentials: rds.Credentials.fromUsername('metabase')
         });
 
         const taskDefinition = new ecs.FargateTaskDefinition(this, 'Metabase', {
@@ -35,7 +48,7 @@ export class MetabaseService extends cdk.Stack {
             memoryLimitMiB: 2048
         });
 
-        const dbSecret = database.node.tryFindChild('Secret') as rds.DatabaseSecret;
+        const dbSecret = db.node.tryFindChild('Secret') as rds.DatabaseSecret;
 
         const container = taskDefinition.addContainer('web', {
             image: ecs.ContainerImage.fromRegistry('metabase/metabase'),
@@ -62,7 +75,7 @@ export class MetabaseService extends cdk.Stack {
 
         const fargateService = new ecsPatterns.ApplicationLoadBalancedFargateService(this, 'fargateService', {
             cluster: props.cluster,
-            desiredCount: 2,
+            desiredCount: 1,
             taskDefinition,
             assignPublicIp: true,
             taskSubnets: {
@@ -70,6 +83,52 @@ export class MetabaseService extends cdk.Stack {
             }
         });
 
-        database.connections.allowDefaultPortFrom(fargateService.service);
+        db.connections.allowDefaultPortFrom(fargateService.service);
+
+        const monitoring = new MonitoringFacade(this, 'Monitoring', {
+            metricFactoryDefaults: {
+                namespace: 'Metabase'
+            },
+            alarmFactoryDefaults: {
+                alarmNamePrefix: 'Metabase',
+                actionsEnabled: true
+            },
+            dashboardFactory: new DefaultDashboardFactory(this, 'Dashboard', {
+                dashboardNamePrefix: 'Metabase',
+                createDashboard: true,
+                createSummaryDashboard: true,
+                createAlarmDashboard: true,
+                renderingPreference: DashboardRenderingPreference.INTERACTIVE_ONLY
+            })
+        });
+
+        monitoring.monitorSimpleFargateService({
+            fargateService: fargateService.service,
+            addCpuUsageAlarm: {
+                Warning: {
+                    maxUsagePercent: 80
+                }
+            },
+            addMemoryUsageAlarm: {
+                Warning: {
+                    maxUsagePercent: 80
+                }
+            },
+            addRunningTaskCountAlarm: {
+                Warning: {
+                    maxRunningTasks: 5
+                }
+            }
+        });
+
+        monitoring.monitorRdsCluster({
+            clusterIdentifier: db.clusterIdentifier,
+            alarmFriendlyName: 'Database',
+            addCpuUsageAlarm: {
+                Warning: {
+                    maxUsagePercent: 70
+                }
+            }
+        });
     }
 }

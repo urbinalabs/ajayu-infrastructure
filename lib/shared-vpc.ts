@@ -18,6 +18,11 @@ export class SharedVpc extends cdk.Stack {
            cidrMask: 24,
            name: 'public',
            subnetType: ec2.SubnetType.PUBLIC
+         },
+         {
+           cidrMask: 24,
+           name: 'isolated',
+           subnetType: ec2.SubnetType.ISOLATED
          }
        ]
      }); 
