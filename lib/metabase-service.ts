@@ -1,4 +1,5 @@
 import * as cdk from 'aws-cdk-lib';
+import { Construct } from 'constructs';
 import { aws_ec2 as ec2 } from 'aws-cdk-lib';
 import { aws_ecs as ecs } from 'aws-cdk-lib';
 import { aws_ecs_patterns as ecsPatterns } from 'aws-cdk-lib';
@@ -10,7 +11,7 @@ export interface MetabaseServiceProps {
 }
 
 export class MetabaseService extends cdk.Stack {
-    constructor(scope: cdk.App, id: string, props: MetabaseServiceProps) {
+    constructor(scope: Construct, id: string, props: MetabaseServiceProps) {
         super(scope, id);
 
         cdk.Tags.of(this).add('urbinalabs:app', 'Metabase');
@@ -72,16 +73,5 @@ export class MetabaseService extends cdk.Stack {
         });
 
         database.connections.allowDefaultPortFrom(fargateService.service);
-
-        // const service = new ecs.FargateService(this, 'Service', {
-        //     cluster: props.cluster,
-        //     taskDefinition,
-        //     assignPublicIp: true,
-        //     enableECSManagedTags: true,
-        //     enableExecuteCommand: true,
-        //     vpcSubnets: {
-        //         subnetType: ec2.SubnetType.PUBLIC
-        //     }
-        // });
     }
 }
