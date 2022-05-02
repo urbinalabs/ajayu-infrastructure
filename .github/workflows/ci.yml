@@ -29,10 +29,10 @@ jobs:
       - run: npm run build
 
       - name: cdk diff
-        run: npm run cdk diff 'Metabase/**'
+        run: npm run cdk diff --all
         id: diff
         if: github.event_name == 'pull_request'
 
       - name: cdk deploy
-        run: npm run cdk deploy --require-approval=never 'Metabase/**'
+        run: npm run cdk deploy --all
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
