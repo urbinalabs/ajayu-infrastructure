@@ -23,6 +23,11 @@ export class Pipeline extends cdk.Stack {
 class Metabase extends cdk.Stage {
     constructor(scope: Construct, id: string, props?: cdk.StageProps) {
         super(scope, id, props);
+
+        cdk.Tags.of(this).add('urbinalabs:app', 'Metabase', {
+            priority: 300
+        });
+
         const sharedVpc = new SharedVpc(this, 'SharedVpc');
         const ecsCluster = new EcsCluster(this, 'EcsCluster', {
             vpc: sharedVpc.vpc

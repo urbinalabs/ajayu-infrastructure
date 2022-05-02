@@ -14,8 +14,6 @@ export class MetabaseService extends cdk.Stack {
     constructor(scope: Construct, id: string, props: MetabaseServiceProps) {
         super(scope, id);
 
-        cdk.Tags.of(this).add('urbinalabs:app', 'Metabase');
-
         const database = new rds.DatabaseInstance(this, 'Database', {
             engine: rds.DatabaseInstanceEngine.postgres({
                 version: rds.PostgresEngineVersion.VER_14_2
