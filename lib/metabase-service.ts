@@ -1,16 +1,10 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { aws_ec2 as ec2 } from 'aws-cdk-lib';
+import { aws_rds as rds } from 'aws-cdk-lib';
 import { aws_ecs as ecs } from 'aws-cdk-lib';
 import { aws_ecs_patterns as ecsPatterns } from 'aws-cdk-lib';
-import { aws_rds as rds } from 'aws-cdk-lib';
-import {
-    DefaultDashboardFactory,
-    DashboardRenderingPreference,
-    FargateServiceMonitoring,
-    MonitoringFacade,
-    MonitoringScope
-} from 'cdk-monitoring-constructs';
+import * as monitor from 'cdk-monitoring-constructs';
 
 export interface MetabaseServiceProps {
     readonly cluster: ecs.Cluster;
@@ -84,5 +78,35 @@ export class MetabaseService extends cdk.Stack {
         });
 
         db.connections.allowDefaultPortFrom(fargateService.service);
+
+        // Monitoring
+        const monitoring = new monitor.MonitoringFacade(this, 'Monitoring', {
+            metricFactoryDefaults: {
+                namespace: 'Metabase'
+            },
+            alarmFactoryDefaults: {
+                alarmNamePrefix: 'Metabase',
+                actionsEnabled: true
+            },
+            dashboardFactory: new monitor.DefaultDashboardFactory(this, 'Dashboard', {
+                dashboardNamePrefix: 'Metabase',
+                createDashboard: true,
+                createSummaryDashboard: false,
+                createAlarmDashboard: false,
+                renderingPreference: monitor.DashboardRenderingPreference.INTERACTIVE_ONLY
+            })
+        });
+
+        monitoring.monitorFargateService({
+            fargateService,
+            humanReadableName: "Metabase",
+            alarmFriendlyName: "Metabase"
+        });
+
+        monitoring.monitorRdsCluster({
+            clusterIdentifier: db.clusterIdentifier,
+            humanReadableName: "Database",
+            alarmFriendlyName: "Database"
+        });
     }
 }
