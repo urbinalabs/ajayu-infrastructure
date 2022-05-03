@@ -34,5 +34,5 @@ jobs:
         if: github.event_name == 'pull_request'
 
       - name: cdk deploy
-        run: npm run cdk deploy --all
+        run: npm run cdk deploy 'Metabase/**'
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'

@@ -84,51 +84,5 @@ export class MetabaseService extends cdk.Stack {
         });
 
         db.connections.allowDefaultPortFrom(fargateService.service);
-
-        const monitoring = new MonitoringFacade(this, 'Monitoring', {
-            metricFactoryDefaults: {
-                namespace: 'Metabase'
-            },
-            alarmFactoryDefaults: {
-                alarmNamePrefix: 'Metabase',
-                actionsEnabled: true
-            },
-            dashboardFactory: new DefaultDashboardFactory(this, 'Dashboard', {
-                dashboardNamePrefix: 'Metabase',
-                createDashboard: true,
-                createSummaryDashboard: true,
-                createAlarmDashboard: true,
-                renderingPreference: DashboardRenderingPreference.INTERACTIVE_ONLY
-            })
-        });
-
-        monitoring.monitorSimpleFargateService({
-            fargateService: fargateService.service,
-            addCpuUsageAlarm: {
-                Warning: {
-                    maxUsagePercent: 80
-                }
-            },
-            addMemoryUsageAlarm: {
-                Warning: {
-                    maxUsagePercent: 80
-                }
-            },
-            addRunningTaskCountAlarm: {
-                Warning: {
-                    maxRunningTasks: 5
-                }
-            }
-        });
-
-        monitoring.monitorRdsCluster({
-            clusterIdentifier: db.clusterIdentifier,
-            alarmFriendlyName: 'Database',
-            addCpuUsageAlarm: {
-                Warning: {
-                    maxUsagePercent: 70
-                }
-            }
-        });
     }
 }
